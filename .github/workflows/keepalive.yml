@@ -21,7 +21,7 @@ jobs:
           echo "Target: ${{ matrix.space }}"
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
-            https://huggingface.co/spaces/${{ secrets[matrix.space] }})
+            https://huggingface.co/api/spaces/${{ secrets[matrix.space] }})
           echo "Status Code: $response"
           if [ "$response" -eq 200 ]; then
             echo "Result: OK - Space is alive"
