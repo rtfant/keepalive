@@ -1,0 +1,27 @@
+name: Keep HF Spaces Alive
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        space:
+          - SPACE_1
+          - SPACE_2
+          - SPACE_3
+    steps:
+      - name: Ping ${{ matrix.space }}
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
+            https://huggingface.co/spaces/${{ secrets[matrix.space] }})
+          echo "Pinging ${{ matrix.space }}: $response"
+          if [ "$response" -ge 400 ]; then
+            echo "Ping failed"
+            exit 1
+          fi
