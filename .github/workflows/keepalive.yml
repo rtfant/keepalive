@@ -12,8 +12,8 @@ jobs:
       matrix:
         space:
           - SPACE_1
-          - SPACE_2
-          - SPACE_3
+          # - SPACE_2
+          # - SPACE_3
     steps:
       - name: Ping ${{ matrix.space }}
         run: |
