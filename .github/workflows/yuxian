@@ -1,0 +1,61 @@
+name: Keep HF Space Alive
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          SPACE_NAME="qetuoasd/yuxian"
+
+          echo "=== Checking space: $SPACE_NAME ==="
+
+          # 1. 查询 Space 运行状态
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer $HF_TOKEN" \
+            "https://huggingface.co/api/spaces/$SPACE_NAME")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HF API Status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            STAGE=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('runtime',{}).get('stage','unknown'))" 2>/dev/null || echo "unknown")
+            echo "Space stage: $STAGE"
+
+            if [ "$STAGE" = "SLEEPING" ] || [ "$STAGE" = "PAUSED" ]; then
+              echo "Space is $STAGE, triggering restart..."
+              curl -s -X POST \
+                -H "Authorization: Bearer $HF_TOKEN" \
+                "https://huggingface.co/api/spaces/$SPACE_NAME/restart"
+              echo "Restart triggered, waiting 30s..."
+              sleep 30
+            fi
+          fi
+
+          # 2. 直接 ping Space 的 health 端点
+          SPACE_HOST="qetuoasd-yuxian.hf.space"
+          echo "Pinging https://$SPACE_HOST/health ..."
+
+          HEALTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $HF_TOKEN" \
+            --max-time 60 \
+            "https://$SPACE_HOST/health")
+
+          echo "Health status: $HEALTH_CODE"
+
+          if [ "$HEALTH_CODE" -eq 200 ]; then
+            echo "Space is alive and healthy!"
+          elif [ "$HEALTH_CODE" -eq 000 ]; then
+            echo "Space is still starting up (timeout)"
+          else
+            echo "Unexpected status: $HEALTH_CODE"
+          fi
