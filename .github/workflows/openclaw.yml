@@ -8,17 +8,11 @@ on:
 jobs:
   keepalive:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        space:
-          - { id: qetuoasd/openclaw0312, name: openclaw0312 }
-          # - { id: username/another-space, name: another-space }
     steps:
-      - name: Ping ${{ matrix.space.name }}
+      - name: Ping Space
         run: |
           echo "=== $(date -u '+%Y-%m-%d %H:%M:%S UTC') ==="
-          URL="https://${{ replace(matrix.space.id, '/', '-') }}.hf.space/__openclaw__/health"
+          URL="https://qetuoasd-openclaw0312.hf.space/__openclaw__/health"
           echo "Target: $URL"
 
           response=$(curl -s -o /dev/null -w "%{http_code}" \
