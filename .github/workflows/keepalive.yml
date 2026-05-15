@@ -2,36 +2,40 @@ name: Keep HF Spaces Alive
 
 on:
   schedule:
-    - cron: '0 */1 * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
   keepalive:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         space:
-          - SPACE_1
-          # - SPACE_2
-          # - SPACE_3
+          - qetuoasd/openclaw0312
+          # - username/another-space   # 按需添加更多 Space
     steps:
       - name: Ping ${{ matrix.space }}
         run: |
           echo "=== $(date -u '+%Y-%m-%d %H:%M:%S UTC') ==="
-          echo "Target: ${{ matrix.space }}"
+          URL="https://${{ matrix.space }}.hf.space/__openclaw__/health"
+          echo "Target: $URL"
+
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
-            https://huggingface.co/api/spaces/${{ secrets[matrix.space] }})
+            --connect-timeout 15 \
+            --max-time 30 \
+            "$URL" || echo "curl_failed")
+
           echo "Status Code: $response"
-          if [ "$response" -eq 200 ]; then
-            echo "Result: OK - Space is alive"
-          elif [ "$response" -eq 403 ]; then
-            echo "Result: FAILED - Token invalid or no permission"
-            exit 1
-          elif [ "$response" -eq 404 ]; then
-            echo "Result: FAILED - Space not found, check secret value"
-            exit 1
+
+          if [ "$response" = "200" ] || [ "$response" = "401" ] || [ "$response" = "404" ]; then
+            echo "Result: OK - Space is running"
+          elif [ "$response" = "curl_failed" ]; then
+            echo "Result: WARN - curl failed (maybe sleeping/starting up)"
+          elif [ "$response" = "503" ] || [ "$response" = "502" ]; then
+            echo "Result: WARN - Space is starting up (503/502)"
           else
-            echo "Result: FAILED - Unexpected status $response"
+            echo "Result: UNKNOWN - Status $response"
             exit 1
           fi
